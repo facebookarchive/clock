@@ -13,7 +13,7 @@ can use the realtime clock while tests can use the mock clock.
 ### Realtime Clock
 
 Your application can maintain a `Clock` variable that will allow realtime and
-mock clocks to be interchangable. For example, if you had an `Application` type:
+mock clocks to be interchangeable. For example, if you had an `Application` type:
 
 ```go
 import "github.com/benbjohnson/clock"
