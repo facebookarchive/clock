@@ -183,7 +183,7 @@ func (m *Mock) Timer(d time.Duration) *Timer {
 	defer m.inc(&m.calls.Timer)
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	ch := make(chan time.Time)
+	ch := make(chan time.Time, 1)
 	t := &Timer{
 		C:    ch,
 		c:    ch,
