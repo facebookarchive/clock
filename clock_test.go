@@ -21,7 +21,9 @@ func TestClock_After(t *testing.T) {
 	}()
 	go func() {
 		time.Sleep(30 * time.Millisecond)
-		t.Fatal("too late")
+		if !ok {
+			t.Fatal("too late")
+		}
 	}()
 	gosched()
 
@@ -40,7 +42,9 @@ func TestClock_AfterFunc(t *testing.T) {
 	}()
 	go func() {
 		time.Sleep(30 * time.Millisecond)
-		t.Fatal("too late")
+		if !ok {
+			t.Fatal("too late")
+		}
 	}()
 	gosched()
 
@@ -73,7 +77,9 @@ func TestClock_Sleep(t *testing.T) {
 	}()
 	go func() {
 		time.Sleep(30 * time.Millisecond)
-		t.Fatal("too late")
+		if !ok {
+			t.Fatal("too late")
+		}
 	}()
 	gosched()
 
@@ -92,7 +98,9 @@ func TestClock_Tick(t *testing.T) {
 	}()
 	go func() {
 		time.Sleep(50 * time.Millisecond)
-		t.Fatal("too late")
+		if !ok {
+			t.Fatal("too late")
+		}
 	}()
 	gosched()
 
@@ -113,11 +121,14 @@ func TestClock_Ticker(t *testing.T) {
 	}()
 	go func() {
 		time.Sleep(200 * time.Millisecond)
-		t.Fatal("too late")
+		if !ok {
+			t.Fatal("too late")
+		}
 	}()
 	gosched()
 
 	ticker := clock.New().Ticker(50 * time.Millisecond)
+	<-ticker.C
 	<-ticker.C
 	<-ticker.C
 	if !ok {
@@ -127,10 +138,8 @@ func TestClock_Ticker(t *testing.T) {
 
 // Ensure that the clock's ticker can stop correctly.
 func TestClock_Ticker_Stp(t *testing.T) {
-	var ok bool
 	go func() {
 		time.Sleep(10 * time.Millisecond)
-		ok = true
 	}()
 	gosched()
 
@@ -153,7 +162,9 @@ func TestClock_Timer(t *testing.T) {
 	}()
 	go func() {
 		time.Sleep(30 * time.Millisecond)
-		t.Fatal("too late")
+		if !ok {
+			t.Fatal("too late")
+		}
 	}()
 	gosched()
 
@@ -166,10 +177,8 @@ func TestClock_Timer(t *testing.T) {
 
 // Ensure that the clock's timer can be stopped.
 func TestClock_Timer_Stop(t *testing.T) {
-	var ok bool
 	go func() {
 		time.Sleep(10 * time.Millisecond)
-		ok = true
 	}()
 
 	timer := clock.New().Timer(20 * time.Millisecond)
@@ -201,6 +210,32 @@ func TestMock_After(t *testing.T) {
 
 	// Move clock forward to the after channel's time.
 	clock.Add(1 * time.Second)
+	gosched()
+	if atomic.LoadInt32(&ok) == 0 {
+		t.Fatal("too late")
+	}
+}
+
+// Ensure that the no deadlock if ch from After not drained
+func TestMock_After_Not_Drained(t *testing.T) {
+	var ok int32
+	clock := clock.NewMock()
+
+	// Create a channel to execute after 10 mock seconds.
+	ch := clock.After(10 * time.Second)
+	shutdown := make(chan struct{})
+	go func(ch <-chan time.Time) {
+		select {
+		case <-ch:
+		case <-shutdown:
+		}
+		atomic.StoreInt32(&ok, 1)
+	}(ch)
+
+	close(shutdown)
+
+	// Move clock forward to the after channel's time.
+	clock.Add(10 * time.Second)
 	if atomic.LoadInt32(&ok) == 0 {
 		t.Fatal("too late")
 	}
@@ -248,13 +283,13 @@ func TestMock_AfterFunc_Stop(t *testing.T) {
 func TestMock_Now(t *testing.T) {
 	clock := clock.NewMock()
 	if now := clock.Now(); !now.Equal(time.Unix(0, 0)) {
-		t.Fatalf("expected epoch, got: ", now)
+		t.Fatalf("expected epoch, got: %+v", now)
 	}
 
 	// Add 10 seconds and check the time.
 	clock.Add(10 * time.Second)
 	if now := clock.Now(); !now.Equal(time.Unix(10, 0)) {
-		t.Fatalf("expected epoch, got: ", now)
+		t.Fatalf("expected epoch, got: %+v", now)
 	}
 }
 
